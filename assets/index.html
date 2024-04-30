@@ -1,0 +1,122 @@
+<div>
+    <div
+        style="background-color: #fff; z-index: top; padding: 10px; height: 40px; top: 0; display:flex; flex-direction: row; justify-content: space-between; align-items: center;">
+        <div>
+            <button onclick="getFiles()">フォルダ選択</button>
+        </div>
+        <div>
+            <button onclick="complement()">補完</button>
+            <button onclick="rename()">リネーム</button>
+        </div>
+    </div>
+    <div style="height: calc(100% - 60px); overflow-y: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>元ファイル名</th>
+                    <th>変換例</th>
+                    <th>変換候補</th>
+                </tr>
+            </thead>
+            <tbody id="tbody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function collectData() {
+        let convertedData = [];
+        let inconvertedData = [];
+        let tbody = document.getElementById('tbody');
+        for (let i = 0; i < tbody.children.length; i++) {
+            let row = tbody.children[i];
+            let fileName = row.children[0].textContent;
+            let converted = document.getElementById(`${fileName}_converted`).value;
+            if (converted === '') {
+                inconvertedData.push(fileName);
+            }
+            else {
+                convertedData.push({
+                    fileName: fileName,
+                    converted: converted
+                });
+            }
+        }
+        return {
+            converted: convertedData,
+            inconverted: inconvertedData
+        };
+    }
+
+    function createRow(fileName) {
+        let row = document.createElement('tr');
+        let td1 = document.createElement('td');
+        let td2 = document.createElement('td');
+        let td3 = document.createElement('td');
+        td1.textContent = fileName;
+        td2.innerHTML = `<input type="text" id="${fileName}_converted" value="">`;
+        td3.innerHTML = `<input type="text" id="${fileName}_candidates" value="">`;
+        row.appendChild(td1);
+        row.appendChild(td2);
+        row.appendChild(td3);
+        return row;
+    }
+
+    function updateTable(data) {
+        let tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+        for (let i = 0; i < data.length; i++) {
+            let row = createRow(data[i]);
+            tbody.appendChild(row);
+        }
+    }
+
+    async function getFiles() {
+        let result = await pywebview.api.get_files();
+        updateTable(result);
+    }
+
+    function updateCompleted(data) {
+        let tbody = document.getElementById('tbody');
+        for (let i = 0; i < tbody.children.length; i++) {
+            let row = tbody.children[i];
+            let fileName = row.children[0].textContent;
+            let converted = data[fileName];
+            if (converted !== undefined) {
+                document.getElementById(`${fileName}_candidates`).value = converted;
+            }
+            else {
+                document.getElementById(`${fileName}_candidates`).value = document.getElementById(`${fileName}_converted`).value;
+            }
+        }
+    }
+
+    async function complement() {
+        let data = collectData();
+        let result = await pywebview.api.complement(data);
+        updateCompleted(result);
+        alert('補完が完了しました');
+    }
+
+    function collectCandidates() {
+        let candidates = [];
+        let tbody = document.getElementById('tbody');
+        for (let i = 0; i < tbody.children.length; i++) {
+            let row = tbody.children[i];
+            let fileName = row.children[0].textContent;
+            let candidate = document.getElementById(`${fileName}_candidates`).value;
+            candidates.push({
+                fileName: fileName,
+                candidate: candidate
+            });
+        }
+        return candidates;
+    }
+
+    async function rename() {
+        let data = collectCandidates();
+        let result = await pywebview.api.rename(data);
+        alert('リネームが完了しました');
+    }
+</script>
